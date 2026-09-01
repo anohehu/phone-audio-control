@@ -1,5 +1,5 @@
 param(
-    [string[]]$PhoneIps = @("10.94.18.52"),
+    [string[]]$PhoneIps = @("10.94.18.52", "10.94.18.84"),
     [string]$ScrcpyDir = "C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1"
 )
 
