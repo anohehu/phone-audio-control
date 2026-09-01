@@ -21,6 +21,9 @@ $script:DeviceIps = @($PhoneIps)
 $script:StatusLabels = @()
 $script:DeviceNames = @()
 $script:Names = @{}
+$script:Docked = $false
+$script:Collapsed = $false
+$script:ExpandedHeight = 30 + 32 * $script:DeviceIps.Count
 $configPath = Join-Path $PSScriptRoot "devices.json"
 
 if (Test-Path $configPath) {
@@ -122,6 +125,16 @@ $close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $close.FlatAppearance.BorderSize = 0
 $close.Add_Click({ $form.Close() })
 $form.Controls.Add($close)
+$script:CloseButton = $close
+
+$dockHint = New-Object System.Windows.Forms.Label
+$dockHint.Text = "..."
+$dockHint.Location = New-Object System.Drawing.Point(138, 0)
+$dockHint.Size = New-Object System.Drawing.Size(24, 10)
+$dockHint.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+$dockHint.Visible = $false
+$form.Controls.Add($dockHint)
+$script:DockHint = $dockHint
 
 $y = 28
 for ($i = 0; $i -lt $script:DeviceIps.Count; $i++) {
@@ -173,6 +186,38 @@ for ($i = 0; $i -lt $script:DeviceIps.Count; $i++) {
     Start-Audio $ip
 }
 
+function Set-Collapsed([bool]$collapsed) {
+    $script:Collapsed = $collapsed
+    if ($collapsed) {
+        $form.Height = 10
+        foreach ($c in $form.Controls) {
+            if ($c -ne $script:CloseButton -and $c -ne $script:DockHint) {
+                $c.Visible = $false
+            }
+        }
+        $script:DockHint.Visible = $true
+    } else {
+        $form.Height = $script:ExpandedHeight
+        foreach ($c in $form.Controls) {
+            if ($c -ne $script:DockHint) {
+                $c.Visible = $true
+            }
+        }
+        $script:DockHint.Visible = $false
+    }
+}
+
+$form.Add_LocationChanged({
+    if (-not $script:Docked -and $form.Top -le 0) {
+        $form.Top = 0
+        $script:Docked = $true
+        Set-Collapsed $true
+    } elseif ($script:Docked -and $form.Top -gt 0) {
+        $script:Docked = $false
+        Set-Collapsed $false
+    }
+})
+
 $form.Add_FormClosing({
     Stop-All-Audio
     [System.Windows.Forms.Application]::Exit()
@@ -188,6 +233,24 @@ $timer = New-Object System.Windows.Forms.Timer
 $timer.Interval = 2000
 $timer.Add_Tick({ Update-Status })
 $timer.Start()
+
+$hoverTimer = New-Object System.Windows.Forms.Timer
+$hoverTimer.Interval = 300
+$hoverTimer.Add_Tick({
+    if ($script:Docked) {
+        $r = New-Object System.Drawing.Rectangle($form.Location, $form.Size)
+        if ($r.Contains([System.Windows.Forms.Cursor]::Position)) {
+            if ($script:Collapsed) {
+                Set-Collapsed $false
+            }
+        } else {
+            if (-not $script:Collapsed) {
+                Set-Collapsed $true
+            }
+        }
+    }
+})
+$hoverTimer.Start()
 
 $form.Show()
 [System.Windows.Forms.Application]::Run()
