@@ -61,6 +61,11 @@ function Update-Status {
 }
 
 function Toggle-Play([string]$ip) {
+    foreach ($other in $script:DeviceIps) {
+        if ($other -ne $ip) {
+            & $adb -s "${other}:5555" shell input keyevent 127 | Out-Null
+        }
+    }
     & $adb -s "${ip}:5555" shell input keyevent 85 | Out-Null
 }
 
