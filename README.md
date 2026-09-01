@@ -8,6 +8,10 @@
 - [scrcpy](https://github.com/Genymobile/scrcpy)（需自带 `adb.exe` 和 `scrcpy-noconsole.vbs`）
 - Android 手机已开启无线 ADB，并和电脑在同一个 Wi-Fi / 热点网络
 
+## 不会配置？
+
+把本仓库链接发给任意 AI，让它按 [AI_SETUP_GUIDE.md](AI_SETUP_GUIDE.md) 帮你配置。
+
 ## 使用
 
 1. 修改脚本开头两个参数：
