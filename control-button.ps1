@@ -21,6 +21,7 @@ $script:DeviceIps = @($PhoneIps)
 $script:StatusLabels = @()
 $script:DeviceNames = @()
 $script:Names = @{}
+$script:StreamStates = @()
 $script:Docked = $false
 $script:Collapsed = $false
 $script:ExpandedHeight = 30 + 32 * $script:DeviceIps.Count
@@ -107,6 +108,7 @@ function Toggle-Play([string]$ip) {
 
 foreach ($ip in $script:DeviceIps) {
     $script:DeviceNames += Get-DeviceName $ip
+    $script:StreamStates += $true
 }
 
 $form = New-Object System.Windows.Forms.Form
@@ -115,11 +117,11 @@ $form.TopMost = $true
 $form.ShowInTaskbar = $false
 $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
 $form.Location = New-Object System.Drawing.Point(100, 100)
-$form.Size = New-Object System.Drawing.Size(300, (30 + 32 * $script:DeviceIps.Count))
+$form.Size = New-Object System.Drawing.Size(390, (30 + 32 * $script:DeviceIps.Count))
 
 $close = New-Object System.Windows.Forms.Button
 $close.Text = "X"
-$close.Location = New-Object System.Drawing.Point(278, 0)
+$close.Location = New-Object System.Drawing.Point(368, 0)
 $close.Size = New-Object System.Drawing.Size(22, 26)
 $close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
 $close.FlatAppearance.BorderSize = 0
@@ -172,11 +174,32 @@ for ($i = 0; $i -lt $script:DeviceIps.Count; $i++) {
     })
     $form.Controls.Add($rename)
 
+    $switch = New-Object System.Windows.Forms.Button
+    $switch.Text = "PC On"
+    $switch.Tag = $i
+    $switch.Location = New-Object System.Drawing.Point(206, $y)
+    $switch.Size = New-Object System.Drawing.Size(64, 28)
+    $switch.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $switch.FlatAppearance.BorderSize = 0
+    $switch.Add_Click({
+        $idx = $this.Tag
+        $deviceIp = $script:DeviceIps[$idx]
+        $script:StreamStates[$idx] = -not $script:StreamStates[$idx]
+        if ($script:StreamStates[$idx]) {
+            Start-Audio $deviceIp
+            $this.Text = "PC On"
+        } else {
+            Stop-Audio $deviceIp
+            $this.Text = "PC Off"
+        }
+    })
+    $form.Controls.Add($switch)
+
     $play = New-Object System.Windows.Forms.Button
     $play.Text = "Play/Pause"
     $play.Tag = $ip
-    $play.Location = New-Object System.Drawing.Point(210, $y)
-    $play.Size = New-Object System.Drawing.Size(78, 28)
+    $play.Location = New-Object System.Drawing.Point(274, $y)
+    $play.Size = New-Object System.Drawing.Size(80, 28)
     $play.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
     $play.FlatAppearance.BorderSize = 0
     $play.Add_Click({ Toggle-Play $this.Tag })
