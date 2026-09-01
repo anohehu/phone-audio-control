@@ -1,6 +1,6 @@
 # 手机音频控制面板
 
-一个 Windows 小面板：把 Android 手机音频通过 [scrcpy](https://github.com/Genymobile/scrcpy) 无线推到电脑播放，同时显示连接状态、提供播放/暂停按钮。
+一个 Windows 小面板：把 Android 手机音频通过 [scrcpy](https://github.com/Genymobile/scrcpy) 无线推到电脑播放，同时显示连接状态、提供播放/暂停按钮。实现类似蓝牙耳机在不同设备间音频流转的功能。
 
 ## 解决什么问题
 
