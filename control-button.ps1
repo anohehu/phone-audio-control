@@ -2,7 +2,8 @@ param(
     [string[]]$PhoneIps = @("10.94.18.52", "10.94.18.84"),
     [string]$ScrcpyDir = "C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1",
     [int]$AudioBufferMs = 20,
-    [int]$AudioOutputBufferMs = 20
+    [int]$AudioOutputBufferMs = 20,
+    [string]$AudioCodec = "raw"
 )
 
 Add-Type -AssemblyName System.Windows.Forms
@@ -51,7 +52,7 @@ function Start-Audio([string]$ip) {
     & $adb connect "${ip}:5555" | Out-Null
     if (-not (Get-DeviceProcesses $ip)) {
         $launcher = Join-Path $dir "scrcpy-noconsole.vbs"
-        Start-Process -FilePath "wscript.exe" -ArgumentList @("`"$launcher`"", "-s", "${ip}:5555", "--no-window", "--no-video", "--no-control", "--audio-buffer=$AudioBufferMs", "--audio-output-buffer=$AudioOutputBufferMs") -WorkingDirectory $dir | Out-Null
+        Start-Process -FilePath "wscript.exe" -ArgumentList @("`"$launcher`"", "-s", "${ip}:5555", "--no-window", "--no-video", "--no-control", "--audio-buffer=$AudioBufferMs", "--audio-output-buffer=$AudioOutputBufferMs", "--audio-codec=$AudioCodec") -WorkingDirectory $dir | Out-Null
     }
 }
 
