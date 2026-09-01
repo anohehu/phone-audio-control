@@ -1,5 +1,5 @@
 param(
-    [string]$PhoneIp = "10.94.18.52",
+    [string[]]$PhoneIps = @("10.94.18.52"),
     [string]$ScrcpyDir = "C:\Users\Administrator\AppData\Local\Microsoft\WinGet\Packages\Genymobile.scrcpy_Microsoft.Winget.Source_8wekyb3d8bbwe\scrcpy-win64-v4.1"
 )
 
@@ -16,86 +16,109 @@ public class DragForm {
 
 $dir = $ScrcpyDir
 $adb = Join-Path $dir "adb.exe"
-$ip = $PhoneIp
+$script:OpenPanels = 0
 
-function Test-Connected {
+function Test-Connected([string]$ip) {
     $out = & $adb -s "${ip}:5555" get-state 2>$null
     return ($out -match "device")
 }
 
-function Start-Audio {
+function Get-DeviceProcesses([string]$ip) {
+    Get-CimInstance Win32_Process -Filter "Name='scrcpy.exe'" | Where-Object { $_.CommandLine -like "*${ip}:5555*" }
+}
+
+function Start-Audio([string]$ip) {
     & $adb connect "${ip}:5555" | Out-Null
-    if (-not (Get-Process -Name scrcpy -ErrorAction SilentlyContinue)) {
+    if (-not (Get-DeviceProcesses $ip)) {
         $launcher = Join-Path $dir "scrcpy-noconsole.vbs"
-        Start-Process -FilePath "wscript.exe" -ArgumentList @("`"$launcher`"", "--no-window", "--no-video", "--no-control") -WorkingDirectory $dir | Out-Null
+        Start-Process -FilePath "wscript.exe" -ArgumentList @("`"$launcher`"", "-s", "${ip}:5555", "--no-window", "--no-video", "--no-control") -WorkingDirectory $dir | Out-Null
     }
 }
 
-function Update-Status {
-    if (Test-Connected) {
-        $status.Text = "Connected"
-        $status.ForeColor = [System.Drawing.Color]::Green
+function Stop-Audio([string]$ip) {
+    Get-DeviceProcesses $ip | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+}
+
+function Update-Status([string]$ip, $statusLabel) {
+    if (Test-Connected $ip) {
+        $statusLabel.Text = "$ip OK"
+        $statusLabel.ForeColor = [System.Drawing.Color]::Green
     } else {
-        $status.Text = "Disconnected"
-        $status.ForeColor = [System.Drawing.Color]::Red
+        $statusLabel.Text = "$ip NO"
+        $statusLabel.ForeColor = [System.Drawing.Color]::Red
     }
 }
 
-function Toggle-Play {
+function Toggle-Play([string]$ip) {
     & $adb -s "${ip}:5555" shell input keyevent 85 | Out-Null
 }
 
-$play = New-Object System.Windows.Forms.Button
-$play.Text = "Play/Pause"
-$play.Location = New-Object System.Drawing.Point(0, 24)
-$play.Size = New-Object System.Drawing.Size(150, 54)
-$play.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-$play.FlatAppearance.BorderSize = 0
-$play.Add_Click({ Toggle-Play })
+function New-Panel([string]$deviceIp, [int]$index) {
+    $play = New-Object System.Windows.Forms.Button
+    $play.Text = "Play/Pause"
+    $play.Location = New-Object System.Drawing.Point(0, 24)
+    $play.Size = New-Object System.Drawing.Size(170, 54)
+    $play.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $play.FlatAppearance.BorderSize = 0
+    $play.Add_Click({ Toggle-Play $deviceIp })
 
-$status = New-Object System.Windows.Forms.Label
-$status.Text = "Connecting..."
-$status.Location = New-Object System.Drawing.Point(4, 4)
-$status.Size = New-Object System.Drawing.Size(124, 18)
-$status.ForeColor = [System.Drawing.Color]::Gray
+    $status = New-Object System.Windows.Forms.Label
+    $status.Text = "Connecting..."
+    $status.Location = New-Object System.Drawing.Point(4, 4)
+    $status.Size = New-Object System.Drawing.Size(144, 18)
+    $status.ForeColor = [System.Drawing.Color]::Gray
 
-$close = New-Object System.Windows.Forms.Button
-$close.Text = "X"
-$close.Location = New-Object System.Drawing.Point(132, 0)
-$close.Size = New-Object System.Drawing.Size(18, 22)
-$close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
-$close.FlatAppearance.BorderSize = 0
-$close.Add_Click({ $form.Close() })
+    $close = New-Object System.Windows.Forms.Button
+    $close.Text = "X"
+    $close.Location = New-Object System.Drawing.Point(152, 0)
+    $close.Size = New-Object System.Drawing.Size(18, 22)
+    $close.FlatStyle = [System.Windows.Forms.FlatStyle]::Flat
+    $close.FlatAppearance.BorderSize = 0
+    $close.Add_Click({ $form.Close() })
 
-$form = New-Object System.Windows.Forms.Form
-$form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
-$form.TopMost = $true
-$form.ShowInTaskbar = $false
-$form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
-$form.Location = New-Object System.Drawing.Point(100, 100)
-$form.Size = New-Object System.Drawing.Size(150, 78)
-$form.Controls.Add($play)
-$form.Controls.Add($status)
-$form.Controls.Add($close)
-$form.Add_FormClosing({
-    Stop-Process -Name scrcpy -Force -ErrorAction SilentlyContinue
-})
+    $form = New-Object System.Windows.Forms.Form
+    $form.FormBorderStyle = [System.Windows.Forms.FormBorderStyle]::None
+    $form.TopMost = $true
+    $form.ShowInTaskbar = $false
+    $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+    $form.Location = New-Object System.Drawing.Point((100 + 130 * $index), 100)
+    $form.Size = New-Object System.Drawing.Size(170, 78)
+    $form.Controls.Add($play)
+    $form.Controls.Add($status)
+    $form.Controls.Add($close)
 
-$form.Add_MouseDown({
-    [DragForm]::ReleaseCapture() | Out-Null
-    [DragForm]::SendMessage($form.Handle, 0xA1, 2, 0) | Out-Null
-})
-$status.Add_MouseDown({
-    [DragForm]::ReleaseCapture() | Out-Null
-    [DragForm]::SendMessage($form.Handle, 0xA1, 2, 0) | Out-Null
-})
+    $script:OpenPanels++
+    $form.Add_FormClosing({
+        Stop-Audio $deviceIp
+        $script:OpenPanels--
+        if ($script:OpenPanels -eq 0) {
+            [System.Windows.Forms.Application]::Exit()
+        }
+    })
 
-Start-Audio
-Update-Status
+    $form.Add_MouseDown({
+        [DragForm]::ReleaseCapture() | Out-Null
+        [DragForm]::SendMessage($form.Handle, 0xA1, 2, 0) | Out-Null
+    })
+    $status.Add_MouseDown({
+        [DragForm]::ReleaseCapture() | Out-Null
+        [DragForm]::SendMessage($form.Handle, 0xA1, 2, 0) | Out-Null
+    })
 
-$timer = New-Object System.Windows.Forms.Timer
-$timer.Interval = 2000
-$timer.Add_Tick({ Update-Status })
-$timer.Start()
+    Start-Audio $deviceIp
+    Update-Status $deviceIp $status
 
-[System.Windows.Forms.Application]::Run($form)
+    $timer = New-Object System.Windows.Forms.Timer
+    $timer.Interval = 2000
+    $timer.Add_Tick({ Update-Status $deviceIp $status })
+    $timer.Start()
+
+    return $form
+}
+
+$forms = @()
+for ($i = 0; $i -lt $PhoneIps.Count; $i++) {
+    $forms += New-Panel $PhoneIps[$i] $i
+}
+$forms | ForEach-Object { $_.Show() }
+[System.Windows.Forms.Application]::Run()
